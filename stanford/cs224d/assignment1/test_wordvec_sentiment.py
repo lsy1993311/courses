@@ -14,7 +14,7 @@ class MyTestCase(unittest.TestCase):
         assert_array_almost_equal(softmax(np.array([[-1001, -1002]])),
                                   [[0.73105858, 0.26894142]])
         assert_array_almost_equal(softmax(np.array([1, 2])),
-                                  np.array([[0.26894142, 0.73105858]]))
+                                  np.array([0.26894142, 0.73105858]))
 
     def test_sigmoid_and_grad(self):
         x = np.array([[1, 2], [-1, -2]])

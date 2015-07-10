@@ -17,11 +17,12 @@ __all__ = ['softmax', 'sigmoid', 'sigmoid_grad', 'gradcheck_naive',
 def softmax(x):
     """ Softmax function """
 
+    # Since x may have only one dimension while we need max and sum operation
+    # along axis 1, to avoid checking the dimension number, we convert them
+    # to operation along axis 0 by transposing the array
     e = np.exp(x.T - np.max(x.T, axis=0)).T
     prob = (e.T / np.sum(e.T, axis=0)).T
 
-    if len(prob.shape) < 2:
-        prob = prob.reshape(1, prob.shape[0])
     return prob
 
 
