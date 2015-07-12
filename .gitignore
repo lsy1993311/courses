@@ -1,0 +1,13 @@
+*.zip
+*.pdf
+.env/
+__MACOSX/
+.idea/
+.DS_Store
+.ipynb_checkpoints/
+.py
+.pyc
+.csv
+.jpg
+.png
+
