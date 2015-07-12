@@ -1,16 +1,8 @@
 __author__ = 'guoxy'
 import random
 import numpy as np
-from cs224d.data_utils import *
-import matplotlib.pyplot as plt
 
-# This is a bit of magic to make matplotlib figures appear inline in the notebook
-# rather than in a new window.
-plt.rcParams['figure.figsize'] = (10.0, 8.0) # set default size of plots
-plt.rcParams['image.interpolation'] = 'nearest'
-plt.rcParams['image.cmap'] = 'gray'
-
-__all__ = ['softmax', 'sigmoid', 'sigmoid_grad', 'gradcheck_naive',
+__all__ = ['softmax', 'sigmoid', 'sigmoid_grad',
            'forward_backward_prop']
 
 
@@ -43,45 +35,7 @@ def sigmoid_grad(f):
     return g
 
 
-def gradcheck_naive(f, x):
-    """
-    Gradient check for a function f
-    - f should be a function that takes a single argument and outputs the cost and its gradients
-    - x is the point (numpy array) to check the gradient at
-    """
-
-    rndstate = random.getstate()
-    random.setstate(rndstate)
-    fx, grad = f(x) # Evaluate function value at original point
-    h = 1e-4
-
-    # Iterate over all indexes in x
-    it = np.nditer(x, flags=['multi_index'], op_flags=['readwrite'])
-    while not it.finished:
-        ix = it.multi_index
-
-        ### YOUR CODE HERE: try modifying x[ix] with h defined above to compute numerical gradients
-        ### make sure you call random.setstate(rndstate) before calling f(x) each time, this will make it
-        ### possible to test cost functions with built in randomness later
-
-        return # replace this line with your code
-
-        ### END YOUR CODE
-
-        # Compare gradients
-        reldiff = abs(numgrad - grad[ix]) / max(1, abs(numgrad), abs(grad[ix]))
-        if reldiff > 1e-5:
-            print "Gradient check failed."
-            print "First gradient error found at index %s" % str(ix)
-            print "Your gradient: %f \t Numerical gradient: %f" % (grad[ix], numgrad)
-            return
-
-        it.iternext() # Step to next dimension
-
-    print "Gradient check passed!"
-
-
-def forward_backward_prop(data, labels, params):
+def forward_backward_prop(data, labels, params, dimensions):
     """ Forward and backward propagation for a two-layer sigmoidal network """
     ###################################################################
     # Compute the forward propagation and for the cross entropy cost, #
@@ -100,16 +54,30 @@ def forward_backward_prop(data, labels, params):
 
     ### YOUR CODE HERE: forward propagation
 
-    # cost = ...
+    z1 = data.dot(W1) + b1
+    h = sigmoid(z1)
+    z2 = h.dot(W2) + b2
+    yhat = softmax(z2)
+    cost = -np.log((yhat * labels)[labels == 1]).sum()
 
     ### END YOUR CODE
 
     ### YOUR CODE HERE: backward propagation
 
-    #gradW1 = ...
-    #gradb1 = ...
-    #gradW2 = ...
-    #gradb2 = ...
+    gradz2 = yhat
+    gradz2[labels == 1] -= 1
+    gradz1 = W2.dot(gradz2.T).T * sigmoid_grad(h)
+
+    gradW1 = data.T.dot(gradz1)
+    if len(gradz1.shape) > 1:
+        gradb1 = gradz1.sum(axis=0)
+    else:
+        gradb1 = gradz1
+    gradW2 = h.T.dot(gradz2)
+    if len(gradz2.shape) > 1:
+        gradb2 = gradz2.sum(axis=0)
+    else:
+        gradb2 = gradz2
 
     ### END YOUR CODE
 
