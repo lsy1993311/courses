@@ -85,3 +85,101 @@ def forward_backward_prop(data, labels, params, dimensions):
     grad = np.concatenate((gradW1.flatten(), gradb1.flatten(), gradW2.flatten(), gradb2.flatten()))
 
     return cost, grad
+
+
+def softmaxCostAndGradient(predicted, target, outputVectors):
+    """ Softmax cost function for word2vec models """
+    ###################################################################
+    # Implement the cost and gradients for one predicted word vector  #
+    # and one target word vector as a building block for word2vec     #
+    # models, assuming the softmax prediction function and cross      #
+    # entropy loss.                                                   #
+    # Inputs:                                                         #
+    #   - predicted: numpy ndarray, predicted word vector (\hat{r} in #
+    #           the written component)                                #
+    #   - target: integer, the index of the target word               #
+    #   - outputVectors: "output" vectors for all tokens              #
+    # Outputs:                                                        #
+    #   - cost: cross entropy cost for the softmax word prediction    #
+    #   - gradPred: the gradient with respect to the predicted word   #
+    #           vector                                                #
+    #   - grad: the gradient with respect to all the other word       #
+    #           vectors                                               #
+    # We will not provide starter code for this function, but feel    #
+    # free to reference the code you previously wrote for this        #
+    # assignment!                                                     #
+    ###################################################################
+
+    ### YOUR CODE HERE
+    prob = softmax(predicted.T.dot(outputVectors))
+    ### END YOUR CODE
+
+    return cost, gradPred, grad
+
+def negSamplingCostAndGradient(predicted, target, outputVectors, K=10):
+    """ Negative sampling cost function for word2vec models """
+    ###################################################################
+    # Implement the cost and gradients for one predicted word vector  #
+    # and one target word vector as a building block for word2vec     #
+    # models, using the negative sampling technique. K is the sample  #
+    # size. You might want to use dataset.sampleTokenIdx() to sample  #
+    # a random word index.                                            #
+    # Input/Output Specifications: same as softmaxCostAndGradient     #
+    # We will not provide starter code for this function, but feel    #
+    # free to reference the code you previously wrote for this        #
+    # assignment!                                                     #
+    ###################################################################
+
+    ### YOUR CODE HERE
+
+    ### END YOUR CODE
+
+    return cost, gradPred, grad
+
+def skipgram(currentWord, C, contextWords, tokens, inputVectors, outputVectors, word2vecCostAndGradient = softmaxCostAndGradient):
+    """ Skip-gram model in word2vec """
+    ###################################################################
+    # Implement the skip-gram model in this function.                 #
+    # Inputs:                                                         #
+    #   - currrentWord: a string of the current center word           #
+    #   - C: integer, context size                                    #
+    #   - contextWords: list of no more than 2*C strings, the context #
+    #             words                                               #
+    #   - tokens: a dictionary that maps words to their indices in    #
+    #             the word vector list                                #
+    #   - inputVectors: "input" word vectors for all tokens           #
+    #   - outputVectors: "output" word vectors for all tokens         #
+    #   - word2vecCostAndGradient: the cost and gradient function for #
+    #             a prediction vector given the target word vectors,  #
+    #             could be one of the two cost functions you          #
+    #             implemented above                                   #
+    # Outputs:                                                        #
+    #   - cost: the cost function value for the skip-gram model       #
+    #   - grad: the gradient with respect to the word vectors         #
+    # We will not provide starter code for this function, but feel    #
+    # free to reference the code you previously wrote for this        #
+    # assignment!                                                     #
+    ###################################################################
+
+    ### YOUR CODE HERE
+
+    ### END YOUR CODE
+
+    return cost, gradIn, gradOut
+
+
+def cbow(currentWord, C, contextWords, tokens, inputVectors, outputVectors, word2vecCostAndGradient = softmaxCostAndGradient):
+    """ CBOW model in word2vec """
+    ###################################################################
+    # Implement the continuous bag-of-words model in this function.   #
+    # Input/Output specifications: same as the skip-gram model        #
+    # We will not provide starter code for this function, but feel    #
+    # free to reference the code you previously wrote for this        #
+    # assignment!                                                     #
+    ###################################################################
+
+    ### YOUR CODE HERE
+
+    ### END YOUR CODE
+
+    return cost, gradIn, gradOut
