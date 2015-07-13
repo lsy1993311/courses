@@ -48,6 +48,7 @@ class TreeNode(object):
         y = x.dot(self.weight.T) + self.bias
         return y
 
+    # TODO: replace majority voting with prediction distribution
     def terminate(self, Y):
         c = Counter(Y.flatten())
         self.positive_class = c.most_common(1)[0][0]
@@ -101,6 +102,7 @@ class Tree(object):
         queue = deque()
         queue.append((self.root, X, Y))
 
+        # TODO: parallel to accelerate
         while len(queue) > 0:
             node, X, Y = queue.popleft()
             if len(X) <= self.min_datasize or node.depth >= self.max_depth:
@@ -153,6 +155,8 @@ class RandomForest(object):
         self.forest_size = forest_size
 
     def fit(self, X, Y):
+
+        # TODO: parallel to accelerate
         for i in xrange(self.forest_size):
             self.base_trees.append(Tree(max_depth=self.max_depth,
                                         min_datasize=self.min_datasize, err=self.err))
