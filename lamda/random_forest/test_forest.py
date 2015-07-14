@@ -53,12 +53,12 @@ class ForestTestCase(unittest.TestCase):
         assert acc_mean >= 0.3
 
     def test_RandomForest(self):
-        forest1 = RandomForest(max_depth=np.inf, min_datasize=1, err=0.1)
+        forest1 = RandomForest(max_depth=np.inf, min_datasize=1, err=0.1, forest_size=20)
         forest1.fit(self.toy_X_train, self.toy_Y_train)
         result = forest1.predict(self.toy_X_test)
         assert_array_almost_equal(np.array(result), self.toy_Y_test)
 
-        forest2 = RandomForest(max_depth=np.inf, min_datasize=10, err=0.1)
+        forest2 = RandomForest(max_depth=np.inf, min_datasize=10, err=0.1, forest_size=100)
         acc_mean, acc_std = k_fold_cv(forest2, self.X, self.Y, k=5)
         print("=== Random Forest ===")
         print(acc_mean)

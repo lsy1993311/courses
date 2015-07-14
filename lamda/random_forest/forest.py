@@ -1,6 +1,7 @@
 #__author__ = 'guoxy'
 from __future__ import division
 from collections import deque, Counter
+import pathos.multiprocessing as mp
 import numpy as np
 import numpy.random as random
 # __all__ = ["RandomForest"]
@@ -19,6 +20,15 @@ class TreeNode(object):
         self.class_distr = None
         self.positive_class = self.negative_class = None
         self.is_terminal = False
+
+    def __str__(self):
+        s = "is_terminal: {}\n".format(self.is_terminal)
+        s += "weight: {}\n".format(self.weight)
+        s += "bias: {}\n".format(self.bias)
+        s += "positive_class: {}\n".format(self.positive_class)
+        s += "depth: {}\n".format(self.depth)
+        s += "err: {}\n".format(self.err)
+        return s
 
     @property
     def classifier(self):
@@ -45,7 +55,11 @@ class TreeNode(object):
         return X.dot(self.weight) + self.bias
 
     def _predict_single(self, x):
-        y = x.dot(self.weight.T) + self.bias
+        if self.weight is None:
+            print("Fuck")
+            print(self)
+            exit(1)
+        y = x.dot(self.weight) + self.bias
         return y
 
     # TODO: replace majority voting with prediction distribution
@@ -75,13 +89,19 @@ class TreeNode(object):
         # random.shuffle(idx)
 
         # SGD
+        w_previous = w.copy() + 1
         for t in xrange(T):
             if t % len(X) == 0:
-                random.shuffle(idx)
+                if np.linalg.norm(w_previous - w) <= 0.0001:
+                    break
+                else:
+                    w_previous[:] = w
+                    random.shuffle(idx)
+
             i = idx[t % len(X)]
             lx = 2 * (Y[i] == pc) - 1
             if (w.dot(X[i]) + b) * lx < 0:
-                step_size = np.power(0.9, t * ep ** 2)
+                step_size = 0.1 / (0.1 + t * ep ** 2)
                 w += step_size * X[i] * lx
                 b += step_size * lx
 
@@ -100,6 +120,7 @@ class Tree(object):
 
     def fit(self, X, Y):
         queue = deque()
+        # X, Y = X0.copy(), Y0.copy()
         queue.append((self.root, X, Y))
 
         # TODO: parallel to accelerate
@@ -145,9 +166,27 @@ class Tree(object):
 
         return r.predict(x)
 
+
+def _parallel_helper(tree, X, Y):
+    tree.fit(X, Y)
+    return tree
+
+
+def _parallel_build_tree(X, Y, n_trees, **tree_paras):
+    pool_size = mp.cpu_count()
+    pool = mp.Pool(pool_size * 2)
+    trees = []
+    for i in xrange(n_trees):
+        trees.append(Tree(**tree_paras))
+    trees = pool.map(lambda x: _parallel_helper(x, X, Y), trees)
+    pool.close()
+    pool.join()
+    return trees
+
+
 class RandomForest(object):
 
-    def __init__(self, max_depth=np.inf, min_datasize=10, err=0.01, forest_size=100):
+    def __init__(self, max_depth=np.inf, min_datasize=10, err=0.01, forest_size=20):
         self.base_trees = []
         self.max_depth = max_depth
         self.min_datasize = min_datasize
@@ -156,11 +195,10 @@ class RandomForest(object):
 
     def fit(self, X, Y):
 
-        # TODO: parallel to accelerate
-        for i in xrange(self.forest_size):
-            self.base_trees.append(Tree(max_depth=self.max_depth,
-                                        min_datasize=self.min_datasize, err=self.err))
-            self.base_trees[-1].fit(X, Y)
+        self.base_trees = _parallel_build_tree(X, Y, self.forest_size,  # followed by tree paras
+                                               max_depth=self.max_depth,
+                                               min_datasize=self.min_datasize,
+                                               err=self.err)
 
     def predict(self, X):
         """
@@ -181,3 +219,4 @@ class RandomForest(object):
         for t in self.base_trees:
             c[t.predict(x)] += 1
         return c.most_common(1)[0][0]
+
