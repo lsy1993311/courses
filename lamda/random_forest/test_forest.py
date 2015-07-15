@@ -8,15 +8,30 @@ from sklearn.utils import shuffle
 from sklearn.cross_validation import StratifiedKFold
 from forest import *
 
-def k_fold_cv(classifier, X, Y, k):
+def k_fold_cv(classifier, X, Y, k, verbose=False, early_stop=None):
+    """
+
+    :param classifier:
+    :param X:
+    :param Y:
+    :param k:
+    :return: mean and standard variance of cv accuracy
+    """
     skf = StratifiedKFold(Y, n_folds=k, shuffle=True)
     acc = []
+    i = 0
     for train_idx, test_idx in skf:
         X_train, X_test = X[train_idx], X[test_idx]
         Y_train, Y_test = Y[train_idx], Y[test_idx]
         classifier.fit(X_train, Y_train)
         results = classifier.predict(X_test)
         acc.append((results == Y_test).sum() / len(Y_test))
+        if verbose:
+            print(" === CV round i === ".format(i))
+            print(acc[-1])
+            i += 1
+        if early_stop is not None and early_stop == i:
+            break
     acc = np.array(acc)
     return acc.mean(), acc.std()
 
