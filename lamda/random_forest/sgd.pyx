@@ -2,29 +2,31 @@
 from __future__ import division
 import numpy as np
 cimport numpy as np
+cimport cython
 import numpy.random as random
 
-def sgd(X, Y, double ep):
+@cython.boundscheck(False)
+def sgd(np.ndarray[np.double_t, ndim=2] X, np.ndarray[np.long_t, ndim=1] Y, double ep):
     # randomly divide positive and negative classes
-    pc = Y[random.randint(0, len(Y))]
-    pos_idx = np.where(Y == pc)[0]
-    neg_idx = np.where(Y != pc)[0]
+    cdef long pc = Y[random.randint(0, len(Y))]
+    cdef np.ndarray pos_idx = np.where(Y == pc)[0]
+    cdef np.ndarray neg_idx = np.where(Y != pc)[0]
     if len(neg_idx) == 0:
         return None, None, None
 
-    xp = X[pos_idx[0]]
-    xn = X[neg_idx[0]]
+    cdef np.ndarray xp = X[pos_idx[0]]
+    cdef np.ndarray xn = X[neg_idx[0]]
 
-    w = xp - xn
+    cdef np.ndarray w = xp - xn
     w /= np.linalg.norm(w)
-    b = 1
-    T = max(np.int(1 / ep ** 2), 1)
-    idx = list(xrange(len(X)))
+    cdef double b = 1
+    cdef int T = max(np.int(1 / ep ** 2), 1)
+    cdef list idx = list(xrange(len(X)))
     # random.shuffle(idx)
 
     # SGD
-    w_previous = w.copy() + 1
-    t = 0
+    cdef np.ndarray w_previous = w.copy() + 1
+    cdef int t = 0
     while t < T:
         if np.linalg.norm(w_previous - w) <= 0.0001:
             break

@@ -9,6 +9,8 @@ import numpy.random as random
 
 # __all__ = ["RandomForest"]
 
+# TODO: write full documents
+
 class TreeNode(object):
 
     def __init__(self, err, depth):
@@ -64,17 +66,16 @@ class TreeNode(object):
         y = x.dot(self.weight) + self.bias
         return y
 
-    # TODO: replace majority voting with prediction distribution
     def terminate(self, Y, y_range):
-        c = Counter(Y.flatten())
-        self.positive_class = c.most_common(1)[0][0]
+        elem, occur = np.unique(Y, return_counts=True)
+        self.positive_class = elem[-1]
         self.is_terminal = True
         self.class_distr = np.zeros(y_range + 1)
-        for k, v in c:
-            self.class_distr[k] = v
+        for i, e in enumerate(elem):
+            self.class_distr[e] = occur[i]
         self.class_distr /= self.class_distr.sum()
 
-    # TODO: rewrite this stupid algorithm with cython
+    # TODO: check the parameter-passing style (value or reference)
     def fit(self, X, Y):
         self.weight, self.bias, self.positive_class = sgd.sgd(X, Y, self.err)
 
@@ -178,25 +179,27 @@ class RandomForest(object):
         self.y_range = None
 
     def _transform_input(self, Y):
+        # TODO: check input
         pass
 
     def fit(self, X, Y):
         self.y_range = np.max(Y)
 
-        # for i in xrange(self.forest_size):
-        #     self.base_trees.append(Tree(max_depth=self.max_depth,
-        #                                 min_datasize=self.min_datasize,
-        #                                 err=self.err,
-        #                                 y_range=self.y_range))
-        #     # self.base_trees[-1].fit(X, Y)
-        self.base_trees = _parallel_build_tree(X, Y, self.forest_size,  # followed by tree paras
-                                               max_depth=self.max_depth,
-                                               min_datasize=self.min_datasize,
-                                               err=self.err,
-                                               y_range=self.y_range)
-        # self.base_trees = Parallel(n_jobs=-1, max_nbytes='100M')(
-        #     delayed(_parallel_build_helper)(t, X, Y)
-        # for t in self.base_trees)
+        for i in xrange(self.forest_size):
+            self.base_trees.append(Tree(max_depth=self.max_depth,
+                                        min_datasize=self.min_datasize,
+                                        err=self.err,
+                                        y_range=self.y_range))
+        #     self.base_trees[-1].fit(X, Y)
+        # self.base_trees = _parallel_build_tree(X, Y, self.forest_size,  # followed by tree paras
+        #                                        max_depth=self.max_depth,
+        #                                        min_datasize=self.min_datasize,
+        #                                        err=self.err,
+        #                                        y_range=self.y_range)
+        # TODO: ensure that mmap has taken effect
+        self.base_trees = Parallel(n_jobs=-1, max_nbytes='10M')(
+            delayed(_parallel_build_helper)(t, X, Y)
+        for t in self.base_trees)
 
     def predict(self, X):
         """
