@@ -38,13 +38,22 @@ def k_fold_cv(classifier, X, Y, k, verbose=False, early_stop=None):
 class ForestTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.toy_X_train = np.array([[-2, -1], [-1, -1], [-1, -2], [1, 1], [1, 2], [2, 1]])
-        self.toy_Y_train = np.array([0, 0, 0, 1, 1, 1])
-        self.toy_X_test = np.array([[-1, -1], [2, 2], [3, 2]])
-        self.toy_Y_test = np.array([0, 1, 1])
+        self.toy_X_train = np.array([
+            [-2, -1], [-1, -1], [-1, -2], [1, 1], [1, 2], [2, 1]
+        ]).astype(np.float64, copy=False)
+        self.toy_Y_train = np.array([
+            0, 0, 0, 1, 1, 1
+        ]).astype(np.int64, copy=False)
+        self.toy_X_test = np.array([
+            [-1, -1], [2, 2], [3, 2]
+        ]).astype(np.float64, copy=False)
+        self.toy_Y_test = np.array([
+            0, 1, 1
+        ]).astype(np.int64, copy=False)
+
         data = load_iris()
-        self.X = data.data
-        self.Y = data.target
+        self.X = data.data.astype(np.float64, copy=False)
+        self.Y = data.target.astype(np.int64, copy=False)
         self.X, self.Y = shuffle(self.X, self.Y, random_state=0)
 
     def test_TreeNode(self):

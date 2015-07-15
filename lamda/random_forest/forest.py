@@ -49,7 +49,7 @@ class TreeNode(object):
         :return: predicted label if self is the terminal node, else the score
         """
         if self.is_terminal:
-            return self.positive_class
+            return self.class_distr
 
         if len(X.shape) < 2 or X.shape[0] == 1:
             return self._predict_single(X)
@@ -69,7 +69,10 @@ class TreeNode(object):
         c = Counter(Y.flatten())
         self.positive_class = c.most_common(1)[0][0]
         self.is_terminal = True
-        self.class_distr = y_range
+        self.class_distr = np.zeros(y_range + 1)
+        for k, v in c:
+            self.class_distr[k] = v
+        self.class_distr /= self.class_distr.sum()
 
     # TODO: rewrite this stupid algorithm with cython
     def fit(self, X, Y):
@@ -84,16 +87,17 @@ class TreeNode(object):
 
 class Tree(object):
 
-    def __init__(self, max_depth, min_datasize, err):
+    def __init__(self, max_depth, min_datasize, err, y_range=None):
         self.root = TreeNode(err, 0)
         self.max_depth = max_depth
         self.min_datasize = min_datasize
         self.err = err
-        self.y_range = None
+        self.y_range = y_range
 
     def fit(self, X, Y):
         queue = deque()
-        self.y_range = np.unique(Y)
+        if self.y_range is None:
+            self.y_range = np.max(Y)
         idxs = np.array(xrange(len(X)))
         queue.append((self.root, idxs))
 
@@ -171,18 +175,25 @@ class RandomForest(object):
         self.min_datasize = min_datasize
         self.err = err
         self.forest_size = forest_size
+        self.y_range = None
+
+    def _transform_input(self, Y):
+        pass
 
     def fit(self, X, Y):
+        self.y_range = np.max(Y)
 
-        for i in xrange(self.forest_size):
-            self.base_trees.append(Tree(max_depth=self.max_depth,
-                                        min_datasize=self.min_datasize,
-                                        err=self.err))
-            # self.base_trees[-1].fit(X, Y)
+        # for i in xrange(self.forest_size):
+        #     self.base_trees.append(Tree(max_depth=self.max_depth,
+        #                                 min_datasize=self.min_datasize,
+        #                                 err=self.err,
+        #                                 y_range=self.y_range))
+        #     # self.base_trees[-1].fit(X, Y)
         self.base_trees = _parallel_build_tree(X, Y, self.forest_size,  # followed by tree paras
                                                max_depth=self.max_depth,
                                                min_datasize=self.min_datasize,
-                                               err=self.err)
+                                               err=self.err,
+                                               y_range=self.y_range)
         # self.base_trees = Parallel(n_jobs=-1, max_nbytes='100M')(
         #     delayed(_parallel_build_helper)(t, X, Y)
         # for t in self.base_trees)
@@ -203,8 +214,10 @@ class RandomForest(object):
             return np.array(Y)
 
     def _predict_single(self, x):
-        c = Counter()
+        # c = Counter()
+        prediction = np.zeros(self.y_range + 1)
         for t in self.base_trees:
-            c[t.predict(x)] += 1
-        return c.most_common(1)[0][0]
-
+            prediction += t.predict(x)
+            # c[t.predict(x)] += 1
+        # return c.most_common(1)[0][0]
+        return np.argmax(prediction)
