@@ -1,4 +1,5 @@
 # __author__ = 'guoxy'
+# testing file for forest.py
 from __future__ import division
 import unittest
 import numpy as np
@@ -28,7 +29,7 @@ def k_fold_cv(classifier, X, Y, k, verbose=False, early_stop=None):
         acc.append((results == Y_test).sum() / len(Y_test))
         if verbose:
             print(" === CV round {} === ".format(i + 1))
-            print(acc[-1])
+            print("Validation accuracy: {0:7.4}".format(acc[-1]))
             i += 1
         if early_stop is not None and early_stop == i:
             break
@@ -69,12 +70,6 @@ class ForestTestCase(unittest.TestCase):
         tree1.fit(self.toy_X_train, self.toy_Y_train)
         result = np.argmax(tree1.predict(self.toy_X_test), axis=1)
         assert_array_almost_equal(np.array(result), self.toy_Y_test)
-
-        # tree2 = Tree(max_depth=np.inf, min_datasize=5, err=0.1)
-        # acc_mean, acc_std = k_fold_cv(tree2, self.X, self.Y, k=5)
-        # print("=== Single Tree ===")
-        # print(acc_mean)
-        # assert acc_mean >= 0.3
 
     def test_RandomForest(self):
         forest1 = RandomForest(max_depth=np.inf, min_datasize=1, err=0.1, forest_size=20)

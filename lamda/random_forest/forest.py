@@ -1,8 +1,7 @@
 #__author__ = 'guoxy'
 from __future__ import division
-from collections import deque, Counter
+from collections import deque
 from sklearn.externals.joblib import Parallel, delayed
-import pathos.multiprocessing as mp
 import numpy as np
 import sgd
 import numpy.random as random
@@ -15,10 +14,9 @@ class TreeNode(object):
 
     def __init__(self, err, depth):
         self.depth = depth
-
         self.err = err
-        self.weight = None
-        self.bias = None
+        self.weight = None  # weight vector for internal linear classifier
+        self.bias = None    # bias for internal linear classifier
         self.pos_child = None
         self.neg_child = None
         self.class_distr = None
@@ -39,6 +37,12 @@ class TreeNode(object):
         return self.weight, self.bias
 
     def direct(self, prediction):
+        """
+        Util func for iteratively making predictions.
+        :param prediction: a real number which equals w^T * x+b at current node
+        :return: next node
+        should only be called in non-terminal nodes.
+        """
         if prediction > 0:
             return self.pos_child
         else:
@@ -46,9 +50,10 @@ class TreeNode(object):
 
     def predict(self, X):
         """
-        make prediction
-        :param x: 1-D array-like, represents a single feature vector
-        :return: predicted label if self is the terminal node, else the score
+        making predictions for a bunch of instances
+        :param x: mxn-shaped array-like, represents m feature vectors with dim n
+        :return: predicted label distribution vector if current node is a terminal node,
+                else the score for directing.
         """
         if self.is_terminal:
             return self.class_distr
@@ -59,6 +64,12 @@ class TreeNode(object):
         return X.dot(self.weight) + self.bias
 
     def _predict_single(self, x):
+        """
+        making prediction for a single instance
+        :param x: 1-D array-like, represents a single feature vector
+        :return: w^T * x + b
+        should only be called in non-terminal nodes
+        """
         if self.weight is None:
             print("Fuck")
             print(self)
@@ -67,6 +78,13 @@ class TreeNode(object):
         return y
 
     def terminate(self, Y, y_range):
+        """
+        making current node a terminal node.
+        :param Y: 1-D array-like with int64 elems, the remained labels in current node
+        :param y_range: max(Y)
+        :return: None
+        The class distribution will be calculated only in terminal node
+        """
         elem, occur = np.unique(Y, return_counts=True)
         self.positive_class = elem[-1]
         self.is_terminal = True
@@ -75,8 +93,16 @@ class TreeNode(object):
             self.class_distr[e] = occur[i]
         self.class_distr /= self.class_distr.sum()
 
-    # TODO: check the parameter-passing style (value or reference)
+    # DONE: np.ndarray is passed by reference to cythonized func
     def fit(self, X, Y):
+        """
+        train the internal linear classifier
+        :param X: mxn-shaped numpy.ndarray with float64 elems,
+                  each row represents a feature vector.
+        :param Y: 1-D numpy.ndarray with int64 elems,
+                  represents the corresponding labels
+        :return: None
+        """
         self.weight, self.bias, self.positive_class = sgd.sgd(X, Y, self.err)
 
         if self.weight is None or \
@@ -102,7 +128,7 @@ class Tree(object):
         idxs = np.array(xrange(len(X)))
         queue.append((self.root, idxs))
 
-        # TODO: parallel to accelerate
+        # TODO: parallelizing to accelerate
         while len(queue) > 0:
             node, index = queue.popleft()
             X_curr = X[index]
@@ -152,21 +178,6 @@ def _parallel_build_helper(tree, X, Y):
     tree.fit(X, Y)
     return tree
 
-# def _parallel_predict_helper(tree, x):
-#     return tree.predict(x)
-
-
-def _parallel_build_tree(X, Y, n_trees, **tree_paras):
-    pool_size = mp.cpu_count()
-    pool = mp.Pool(pool_size * 2)
-    trees = []
-    for i in xrange(n_trees):
-        trees.append(Tree(**tree_paras))
-    trees = pool.map(lambda x: _parallel_build_helper(x, X, Y), trees)
-    pool.close()
-    pool.join()
-    return trees
-
 
 class RandomForest(object):
 
@@ -190,14 +201,8 @@ class RandomForest(object):
                                         min_datasize=self.min_datasize,
                                         err=self.err,
                                         y_range=self.y_range))
-        #     self.base_trees[-1].fit(X, Y)
-        # self.base_trees = _parallel_build_tree(X, Y, self.forest_size,  # followed by tree paras
-        #                                        max_depth=self.max_depth,
-        #                                        min_datasize=self.min_datasize,
-        #                                        err=self.err,
-        #                                        y_range=self.y_range)
         # TODO: ensure that mmap has taken effect
-        self.base_trees = Parallel(n_jobs=-1, max_nbytes='10M')(
+        self.base_trees = Parallel(n_jobs=-1, max_nbytes='100M')(
             delayed(_parallel_build_helper)(t, X, Y)
         for t in self.base_trees)
 
@@ -217,10 +222,7 @@ class RandomForest(object):
             return np.array(Y)
 
     def _predict_single(self, x):
-        # c = Counter()
         prediction = np.zeros(self.y_range + 1)
         for t in self.base_trees:
             prediction += t.predict(x)
-            # c[t.predict(x)] += 1
-        # return c.most_common(1)[0][0]
         return np.argmax(prediction)
