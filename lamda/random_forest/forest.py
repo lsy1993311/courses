@@ -6,7 +6,7 @@ import numpy as np
 import sgd
 import numpy.random as random
 
-# __all__ = ["RandomForest"]
+__all__ = ["RandomForest", "Tree", "TreeNode"]
 
 # TODO: write full documents
 
@@ -115,6 +115,14 @@ class TreeNode(object):
 class Tree(object):
 
     def __init__(self, max_depth, min_datasize, err, y_range=None):
+        """
+        modified decision tree classifer
+        :param max_depth: maximum tree depth
+        :param min_datasize: minimum datasize for each node
+        :param err: the error rate for training each node
+        :param y_range: the possible max class labels
+        :return: None
+        """
         self.root = TreeNode(err, 0)
         self.max_depth = max_depth
         self.min_datasize = min_datasize
@@ -153,7 +161,11 @@ class Tree(object):
             queue.append((node.neg_child, idx_neg))
 
     def predict(self, X):
-        r = self.root
+        """
+        making predictions
+        :param X: mxn-shaped array-like, each row represents a single instance
+        :return: 2-D array-like, each row represents a predicted label distribution
+        """
         if len(X.shape) < 2 or X.shape[0] == 1:
             return self._predict_single(X)
 
@@ -182,6 +194,14 @@ def _parallel_build_helper(tree, X, Y):
 class RandomForest(object):
 
     def __init__(self, max_depth=np.inf, min_datasize=10, err=0.01, forest_size=20):
+        """
+        Random forest classifier
+        :param max_depth: maximum depth for each tree classifiers (default inf)
+        :param min_datasize: minimum data size for each tree classifier (default 3)
+        :param err: error rate for training base linear classifier at each tree node (default 0.01)
+        :param forest_size: number of trees that will be build
+        :return: None
+        """
         self.base_trees = []
         self.max_depth = max_depth
         self.min_datasize = min_datasize
@@ -194,8 +214,12 @@ class RandomForest(object):
         pass
 
     def fit(self, X, Y):
+        """
+        Fit training set
+        :param X: mxn-shaped array-like, each row represents a single instance
+        :param Y: 1-D array-like with length m, contains corresponding class labels
+        """
         self.y_range = np.max(Y)
-
         for i in xrange(self.forest_size):
             self.base_trees.append(Tree(max_depth=self.max_depth,
                                         min_datasize=self.min_datasize,
@@ -208,9 +232,9 @@ class RandomForest(object):
 
     def predict(self, X):
         """
-
-        :param X:
-        :return:
+        making predictions
+        :param X: mxn-shaped array-like, each row represents a single instance
+        :return: 1-D np.ndarray with length n, contains predicted labels
         """
         # TODO: parallelize the prediction process
         if len(X.shape) < 2 or X.shape[0] == 1:

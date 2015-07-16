@@ -12,10 +12,10 @@ from forest import *
 def k_fold_cv(classifier, X, Y, k, verbose=False, early_stop=None):
     """
 
-    :param classifier:
-    :param X:
-    :param Y:
-    :param k:
+    :param classifier: classifer with a 'fit' method for training and a 'predict' method for prediction
+    :param X: mxn-shaped array-like, each row represents a single instance
+    :param Y: 1-D array-like with length m, which contains corresponding labels
+    :param k: fold num
     :return: mean and standard variance of cv accuracy
     """
     skf = StratifiedKFold(Y, n_folds=k, shuffle=True)

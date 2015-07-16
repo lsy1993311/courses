@@ -1,4 +1,5 @@
-__author__ = 'guoxy'
+# __author__ = 'guoxy'
+from __future__ import division
 import numpy as np
 from time import time
 from forest import RandomForest
@@ -51,6 +52,11 @@ X = X.astype(np.float64, copy=False)
 Y = Y.astype(np.int64, copy=False)
 
 print("==== Setting forest's parameter ====")
+normalize = int(raw_input("whether to normalize data to range [0, 1]"
+                          "(1 for yes, 0 for no, default 0)") or 0)
+normalize = (normalize == 1)
+if normalize:
+    X /= X.max()
 fst_size = int(raw_input("forest size (default 20): ") or 20)
 mindt_size = int(raw_input("minimum data size at each node (default 3): ") or 3)
 try:
