@@ -1,6 +1,6 @@
 #__author__ = 'guoxy'
 from __future__ import division
-from collections import deque
+from collections import deque, Counter
 from sklearn.externals.joblib import Parallel, delayed
 import numpy as np
 import sgd
@@ -19,8 +19,8 @@ class TreeNode(object):
         self.bias = None    # bias for internal linear classifier
         self.pos_child = None
         self.neg_child = None
-        self.class_distr = None
-        self.positive_class = self.negative_class = None
+        self.result = None
+        self.positive_class = None
         self.is_terminal = False
 
     def __str__(self):
@@ -56,7 +56,7 @@ class TreeNode(object):
                 else the score for directing.
         """
         if self.is_terminal:
-            return self.class_distr
+            return self.result
 
         if len(X.shape) < 2 or X.shape[0] == 1:
             return self._predict_single(X)
@@ -77,21 +77,26 @@ class TreeNode(object):
         y = x.dot(self.weight) + self.bias
         return y
 
-    def terminate(self, Y, y_range):
+    def terminate(self, Y, y_range, final='distribution'):
         """
         making current node a terminal node.
         :param Y: 1-D array-like with int64 elems, the remained labels in current node
         :param y_range: max(Y)
+        :param final: 'distribution' to return class distribution in current node,
+                      'single' to return the class selected by majority-voting.
         :return: None
         The class distribution will be calculated only in terminal node
         """
         elem, occur = np.unique(Y, return_counts=True)
-        self.positive_class = elem[-1]
+        if final == 'distribution':
+            self.result = np.zeros(y_range + 1)
+            for i, e in enumerate(elem):
+                self.result[e] = occur[i]
+            self.result /= self.result.sum()
+        else:
+            self.result = elem[np.argmax(occur)]
+
         self.is_terminal = True
-        self.class_distr = np.zeros(y_range + 1)
-        for i, e in enumerate(elem):
-            self.class_distr[e] = occur[i]
-        self.class_distr /= self.class_distr.sum()
 
     # DONE: np.ndarray is passed by reference to cythonized func
     def fit(self, X, Y):
@@ -114,13 +119,16 @@ class TreeNode(object):
 
 class Tree(object):
 
-    def __init__(self, max_depth, min_datasize, err, y_range=None):
+    def __init__(self, max_depth, min_datasize, err,
+                 y_range=None, final='distribution'):
         """
         modified decision tree classifer
         :param max_depth: maximum tree depth
         :param min_datasize: minimum datasize for each node
         :param err: the error rate for training each node
         :param y_range: the possible max class labels
+        :param final: 'distribution' to return class distribution in current node,
+                      'single' to return the class selected by majority-voting.
         :return: None
         """
         self.root = TreeNode(err, 0)
@@ -128,6 +136,7 @@ class Tree(object):
         self.min_datasize = min_datasize
         self.err = err
         self.y_range = y_range
+        self.final = final
 
     def fit(self, X, Y):
         queue = deque()
@@ -142,17 +151,17 @@ class Tree(object):
             X_curr = X[index]
             Y_curr = Y[index]
             if len(index) <= self.min_datasize or node.depth >= self.max_depth:
-                node.terminate(Y_curr, self.y_range)
+                node.terminate(Y_curr, self.y_range, self.final)
                 continue
             if not node.fit(X_curr, Y_curr):
-                node.terminate(Y_curr, self.y_range)
+                node.terminate(Y_curr, self.y_range, self.final)
                 continue
 
             result = node.predict(X_curr)
             idx_pos = index[result.flatten() > 0]
             idx_neg = index[result.flatten() <= 0]
             if len(idx_pos) == 0 or len(idx_neg) == 0:
-                node.terminate(Y_curr, self.y_range)
+                node.terminate(Y_curr, self.y_range, self.final)
                 continue
 
             node.pos_child = TreeNode(self.err, node.depth + 1)
@@ -193,7 +202,8 @@ def _parallel_build_helper(tree, X, Y):
 
 class RandomForest(object):
 
-    def __init__(self, max_depth=np.inf, min_datasize=10, err=0.01, forest_size=20):
+    def __init__(self, max_depth=np.inf, min_datasize=10,
+                 err=0.01, forest_size=20, final='distribution'):
         """
         Random forest classifier
         :param max_depth: maximum depth for each tree classifiers (default inf)
@@ -208,6 +218,7 @@ class RandomForest(object):
         self.err = err
         self.forest_size = forest_size
         self.y_range = None
+        self.final = final
 
     def _transform_input(self, Y):
         # TODO: check input
@@ -224,7 +235,8 @@ class RandomForest(object):
             self.base_trees.append(Tree(max_depth=self.max_depth,
                                         min_datasize=self.min_datasize,
                                         err=self.err,
-                                        y_range=self.y_range))
+                                        y_range=self.y_range,
+                                        final=self.final))
         # TODO: ensure that mmap has taken effect
         self.base_trees = Parallel(n_jobs=-1, max_nbytes='100M')(
             delayed(_parallel_build_helper)(t, X, Y)
@@ -246,7 +258,13 @@ class RandomForest(object):
             return np.array(Y)
 
     def _predict_single(self, x):
-        prediction = np.zeros(self.y_range + 1)
-        for t in self.base_trees:
-            prediction += t.predict(x)
-        return np.argmax(prediction)
+        if self.final == 'distribution':
+            prediction = np.zeros(self.y_range + 1)
+            for t in self.base_trees:
+                prediction += t.predict(x)
+            return np.argmax(prediction)
+        else:
+            c = Counter()
+            for t in self.base_trees:
+                c[t.predict(x)] += 1
+            return c.most_common(1)[0][0]

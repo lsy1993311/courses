@@ -36,6 +36,12 @@ def k_fold_cv(classifier, X, Y, k, verbose=False, early_stop=None):
     acc = np.array(acc)
     return acc.mean(), acc.std()
 
+def assess_estimator(estimator, train_data, train_label,
+                     test_data, test_label, grader):
+    estimator.fit(train_data, train_label)
+    prediction = estimator.predict(test_data)
+    grader(prediction, test_label)
+
 class ForestTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -66,22 +72,57 @@ class ForestTestCase(unittest.TestCase):
         assert_array_almost_equal(result, self.toy_Y_test)
 
     def test_Tree(self):
-        tree1 = Tree(max_depth=np.inf, min_datasize=1, err=0.1)
-        tree1.fit(self.toy_X_train, self.toy_Y_train)
-        result = np.argmax(tree1.predict(self.toy_X_test), axis=1)
-        assert_array_almost_equal(np.array(result), self.toy_Y_test)
+        tree1 = Tree(max_depth=np.inf, min_datasize=1,
+                     err=0.1, final='distribution')
+        assess_estimator(estimator=tree1,
+                         train_data=self.toy_X_train,
+                         train_label=self.toy_Y_train,
+                         test_data=self.toy_X_test,
+                         test_label=self.toy_Y_test,
+                         grader=lambda p, y:
+                         assert_array_almost_equal(np.argmax(p, axis=1), y))
+
+        tree2 = Tree(max_depth=np.inf, min_datasize=1,
+                     err=0.1, final='single')
+        assess_estimator(estimator=tree2,
+                         train_data=self.toy_X_train,
+                         train_label=self.toy_Y_train,
+                         test_data=self.toy_X_test,
+                         test_label=self.toy_Y_test,
+                         grader=assert_array_almost_equal)
 
     def test_RandomForest(self):
-        forest1 = RandomForest(max_depth=np.inf, min_datasize=1, err=0.1, forest_size=20)
-        forest1.fit(self.toy_X_train, self.toy_Y_train)
-        result = forest1.predict(self.toy_X_test)
-        assert_array_almost_equal(np.array(result), self.toy_Y_test)
+        forest1 = RandomForest(max_depth=np.inf, min_datasize=1,
+                               err=0.1, forest_size=20, final='single')
+        assess_estimator(estimator=forest1,
+                         train_data=self.toy_X_train,
+                         train_label=self.toy_Y_train,
+                         test_data=self.toy_X_test,
+                         test_label=self.toy_Y_test,
+                         grader=assert_array_almost_equal)
 
-        forest2 = RandomForest(max_depth=np.inf, min_datasize=10, err=0.1, forest_size=100)
-        acc_mean, acc_std = k_fold_cv(forest2, self.X, self.Y, k=5)
-        print("=== Random Forest ===")
+        forest2 = RandomForest(max_depth=np.inf, min_datasize=1,
+                               err=0.1, forest_size=20, final='distribution')
+        assess_estimator(estimator=forest2,
+                         train_data=self.toy_X_train,
+                         train_label=self.toy_Y_train,
+                         test_data=self.toy_X_test,
+                         test_label=self.toy_Y_test,
+                         grader=assert_array_almost_equal)
+
+        forest3 = RandomForest(max_depth=np.inf, min_datasize=10,
+                               err=0.1, forest_size=20, final='single')
+        acc_mean, acc_std = k_fold_cv(forest3, self.X, self.Y,
+                                      k=5, verbose=True)
         print(acc_mean)
-        assert acc_mean >= 0.3
+        assert acc_mean >= 0.9
+
+        forest4 = RandomForest(max_depth=np.inf, min_datasize=10,
+                               err=0.1, forest_size=20, final='distribution')
+        acc_mean, acc_std = k_fold_cv(forest4, self.X, self.Y,
+                                      k=5, verbose=True)
+        print(acc_mean)
+        assert acc_mean >= 0.9
 
 if __name__ == '__main__':
     unittest.main()
